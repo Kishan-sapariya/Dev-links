@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/lib/generated/prisma";
+import { PrismaClient } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { SignJWT } from "jose";
 import { NextResponse } from "next/server";
