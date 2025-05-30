@@ -1,68 +1,66 @@
-import prisma from "@/lib/prisma";
-import { SignJWT } from "jose";
-import bcrypt from "bcryptjs";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import prisma from '@/lib/prisma';
 
-export const POST = async (req) => {
+export async function POST(request) {
   try {
-    const { email, password } = await req.json();
+    const { email, password } = await request.json();
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { message: "Email and password are required" },
-        { status: 400 }
-      );
-    }
-
-    const user = await prisma.User.findUnique({
-      where: { email },
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email }
     });
 
     if (!user) {
-      return NextResponse.json({ message: "Invalid email" }, { status: 401 });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
       return NextResponse.json(
-        { message: "Invalid password" },
+        { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const token = await new SignJWT({ userId: user.id })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("7d")
-      .sign(secret);
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
 
-    const response = NextResponse.json(
-      {
-        message: "Login successful",
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-        },
-      },
-      { status: 200 }
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
-    response.cookies.set("token", token, {
+    // Create response
+    const response = NextResponse.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username
+      }
+    });
+
+    // Set cookie
+    response.cookies.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
     });
 
     return response;
+
   } catch (error) {
-    console.error("Login error:", error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { message: "Something went wrong" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-};
+}

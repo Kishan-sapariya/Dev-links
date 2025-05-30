@@ -1,7 +1,8 @@
-import { verifyToken } from './lib/auth';
+import jwt from 'jsonwebtoken';
+import { NextResponse } from 'next/server';
 
-export async function middleware(request) {
-  return await verifyToken(request);
+export function middleware(request) {
+ 
 }
 
 export const config = {
